@@ -1,3 +1,11 @@
+#define MSP_ARM                  151
+#define MSP_DISARM               152
+#define MSP_TRIM_UP              153
+#define MSP_TRIM_DOWN            154
+#define MSP_TRIM_LEFT            155
+#define MSP_TRIM_RIGHT           156
+#define MSP_SET_RAW_RC           200
+
 enum
 {
     leftX = 0, leftY, rightX, rightY,
@@ -40,8 +48,8 @@ void armState()
             Serial.write('M');
             Serial.write('<');
             Serial.write(0);
-            Serial.write(151);
-            Serial.write(151);
+            Serial.write(MSP_ARM);
+            Serial.write(MSP_ARM);
         }
         else
         {
@@ -49,8 +57,8 @@ void armState()
             Serial.write('M');
             Serial.write('<');
             Serial.write(0);
-            Serial.write(152);
-            Serial.write(152);
+            Serial.write(MSP_DISARM);
+            Serial.write(MSP_DISARM);
         }
 
     }
@@ -113,9 +121,9 @@ void rcState()
 
     if((current - preTime) > 80)
     {
-        rc16[rcRoll] = map(joysticRead[leftX], 0, 1023, RC_MIN, RC_MAX);
-        rc16[rcPitch] = map(joysticRead[leftY], 0, 1023, RC_MIN, RC_MAX);
-        rc16[rcYaw] = map(joysticRead[rightX], 0, 1023, RC_MIN, RC_MAX);
+        rc16[rcRoll] = map(joysticRead[leftX], 0, 1023, RC_MIN + 200, RC_MAX - 200);
+        rc16[rcPitch] = map(joysticRead[leftY], 0, 1023, RC_MIN + 200, RC_MAX - 200);
+        rc16[rcYaw] = map(joysticRead[rightX], 0, 1023, RC_MIN + 200, RC_MAX - 200);
         rc16[rcThrottle] = map(joysticRead[rightY], 0, 1023, RC_MIN, RC_MAX);
         rc16[rcAux1] = map(bottonRead[leftToggle1], 0, 1, RC_MAX, RC_MIN);
         rc16[rcAux2] = RC_MIN;
@@ -135,7 +143,7 @@ void rcState()
         Serial.write('M');
         Serial.write('<');
         Serial.write(16);
-        Serial.write(200);
+        Serial.write(MSP_SET_RAW_RC);
 
         for(uint8_t i = 0; i < 16; i++)
             Serial.write(rc8[i]);
@@ -145,6 +153,69 @@ void rcState()
         preTime = current;
     }
 
+}
+
+void trimState()
+{
+    static uint16_t pre_X = 512;
+    static uint16_t pre_Y = 512;
+
+    uint16_t current_X = joysticRead[leftX];
+    uint16_t current_Y = joysticRead[leftY];
+
+    if(pre_X <= 900)
+    {
+        if(current_X > 900)
+        {
+            Serial.write('$');
+            Serial.write('M');
+            Serial.write('<');
+            Serial.write(0);
+            Serial.write(MSP_TRIM_RIGHT);
+            Serial.write(MSP_TRIM_RIGHT);
+        }
+    }
+
+    if(pre_X >= 100)
+    {
+        if(current_X < 100)
+        {
+            Serial.write('$');
+            Serial.write('M');
+            Serial.write('<');
+            Serial.write(0);
+            Serial.write(MSP_TRIM_LEFT);
+            Serial.write(MSP_TRIM_LEFT);
+        }
+    }
+    pre_X = current_X;
+
+    if(pre_Y <= 900)
+    {
+        if(current_Y > 900)
+        {
+            Serial.write('$');
+            Serial.write('M');
+            Serial.write('<');
+            Serial.write(0);
+            Serial.write(MSP_TRIM_UP);
+            Serial.write(MSP_TRIM_UP);
+        }
+    }
+
+    if(pre_Y >= 100)
+    {
+        if(current_Y < 100)
+        {
+            Serial.write('$');
+            Serial.write('M');
+            Serial.write('<');
+            Serial.write(0);
+            Serial.write(MSP_TRIM_DOWN);
+            Serial.write(MSP_TRIM_DOWN);
+        }
+    }
+    pre_Y = current_Y;
 }
 
 //The setup function is called once at startup of the sketch
@@ -172,5 +243,15 @@ void loop()
     }
 
     armState();
-    rcState();
+
+    //normal RC controll mode
+    if(bottonRead[rightToggle2] == toggleDown)
+    {
+        rcState();
+    }
+    //set trim if right toggle switch 2 is up state
+    else
+    {
+        trimState();
+    }
 }
